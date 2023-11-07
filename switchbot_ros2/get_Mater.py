@@ -1,7 +1,9 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String  # String message type を使います
-import json  # JSON エンコードのためのライブラリ
+
+# 必要なメッセージ型をインポート
+from std_msgs.msg import Float64, UInt8
+
 import binascii
 from bluepy.btle import Scanner, DefaultDelegate
 
@@ -14,36 +16,41 @@ class ScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         if dev.addr == macaddr:
-            for (adtype, desc, value) in dev.getScanData():
+            for ( adtype, desc, value ) in dev.getScanData():
                 if adtype == 22:
                     servicedata = binascii.unhexlify(value[4:])
-                    battery_level = float(servicedata[2] & 0b01111111)
+
+                    battery = UInt8()
+                    battery.data = servicedata[2] & 0b01111111
+
                     isTemperatureAboveFreezing = servicedata[4] & 0b10000000
-                    temperature = (servicedata[3] & 0b00001111) / 10 + (servicedata[4] & 0b01111111)
+                    temperature = Float64()
+                    temperature.data = (servicedata[3] & 0b00001111) / 10 + (servicedata[4] & 0b01111111)
                     if not isTemperatureAboveFreezing:
-                        temperature = -temperature
-                    humidity = float(servicedata[5] & 0b01111111)
+                        temperature.data = -temperature.data
 
-                    # Create a JSON string
-                    data_json = {
-                        'temperature': temperature,
-                        'humidity': humidity,
-                        'battery_level': battery_level
-                    }
-                    data_str = json.dumps(data_json)
+                    humidity = UInt8()
+                    humidity.data = servicedata[5] & 0b01111111
 
-                    # Publish the data
-                    data_msg = String(data=data_str)
-                    self.node.data_publisher.publish(data_msg)
 
-                    # Print to standard output
-                    self.node.get_logger().info(f'Published data: {data_str}')
+                    # データをそれぞれのトピックに公開
+                    self.node.battery_publisher.publish(battery)
+                    self.node.temperature_publisher.publish(temperature)
+                    self.node.humidity_publisher.publish(humidity)
+
+                    # 標準出力にデータを出力
+                    self.node.get_logger().info(f'Published battery: {battery.data}')
+                    self.node.get_logger().info(f'Published temperature: {temperature.data}')
+                    self.node.get_logger().info(f'Published humidity: {humidity.data}')
 
 class BluetoothScannerNode(Node):
     def __init__(self):
         super().__init__('bluetooth_scanner')
-        # Initialize the publisher
-        self.data_publisher = self.create_publisher(String, 'switchbot/data', 10)  # Float64MultiArray -> String
+        # パブリッシャの初期化
+        self.battery_publisher = self.create_publisher(UInt8, 'switchbot/battery', 10)
+        self.temperature_publisher = self.create_publisher(Float64, 'switchbot/temperature', 10)
+        self.humidity_publisher = self.create_publisher(UInt8, 'switchbot/humidity', 10)
+
         self.scanner = Scanner().withDelegate(ScanDelegate(self))
         self.timer = self.create_timer(1.0, self.scan)
 
