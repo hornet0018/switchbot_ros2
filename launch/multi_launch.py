@@ -18,5 +18,10 @@ def generate_launch_description():
             executable='micro_ros_agent',
             arguments=['udp4', '--port', '8888'],
             name='micro_ros_agent_node'
+        ),
+        Node(
+            package='jsonPub_ros2',
+            executable='publish_data',
+            name='json_publisher_node'
         )
     ])
