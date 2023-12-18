@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="switchbot_ros2" type="switchbot_node.py" name="switchbot_start" output="screen" />
+</launch>
