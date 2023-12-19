@@ -8,7 +8,7 @@ import binascii
 from bluepy.btle import Scanner, DefaultDelegate
 
 #macaddr = 'd6:03:21:1e:72:d1'
-macaddr = 'e2:a4:0f:6a:8b:79'
+#macaddr = 'e2:a4:0f:6a:8b:79'
 
 class ScanDelegate(DefaultDelegate):
     def __init__(self, node):
@@ -17,7 +17,7 @@ class ScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         #rospy.loginfo("Discovered device: {}".format(dev.addr))
-        if dev.addr == macaddr:
+        if dev.addr == self.node.macaddr:  # パラメータを使用
             for (adtype, desc, value) in dev.getScanData():
                 if adtype == 22:
                     servicedata = binascii.unhexlify(value[4:])
@@ -50,6 +50,8 @@ class ScanDelegate(DefaultDelegate):
 class BluetoothScannerNode:
     def __init__(self):
         rospy.init_node('bluetooth_scanner', anonymous=True)
+        # macaddr パラメータを取得（デフォルト値も設定）
+        self.macaddr = rospy.get_param('~macaddr', 'd6:03:21:1e:72:d1')
         self.battery_publisher = rospy.Publisher('switchbot/battery', UInt8, queue_size=10)
         self.temperature_publisher = rospy.Publisher('switchbot/temperature', Float64, queue_size=10)
         self.humidity_publisher = rospy.Publisher('switchbot/humidity', UInt8, queue_size=10)
